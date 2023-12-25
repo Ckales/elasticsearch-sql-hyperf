@@ -2,7 +2,6 @@
 
 namespace Es\Builder;
 
-use Es\Builder\Connection;
 use Es\Es;
 
 class Query
@@ -23,7 +22,7 @@ class Query
     private static $from;
     private static $highlight;
 
-    public function __construct(Connection $client = null)
+    public function __construct($client = null)
     {
         if (is_null($client)) {
             $this->client = Es::connect();
@@ -80,24 +79,6 @@ class Query
     }
 
 
-    public function index_old(array $data = [], string $index = '')
-    {
-        try {
-            $index && self::$index = $index;
-            if(!empty($data)) {
-                $id = $data['id'] ?? 0;
-                $params = [
-                    'id' => $id,
-                    'index' => self::$index,
-                    'body' => $data
-                ];
-                return $result = $this->client->index($params);
-            }
-        } catch (\Exception $e) {
-        }
-        return [];
-    }
-
     public function batchIndex(array $list = [], string $index = '')
     {
         try {
@@ -143,7 +124,7 @@ class Query
      * 多条sql查询
      * @param string $index
      * @return array
-     * @author 李静
+     * @author ChingLi
      */
     public function select(string $index = '')
     {
@@ -168,7 +149,7 @@ class Query
      * @param $page
      * @param $index
      * @return array
-     * @author 李静
+     * @author ChingLi
      */
     public function paginate($page_size = 10, $page = 1)
     {
@@ -187,18 +168,51 @@ class Query
                 $list = [];
             }
 
+            $data = $this->_imitate_page($total,$page_size, $page);
             $data['data'] = $list;
 
             return $data;
         } catch (\Throwable $e) {
         }
+        return $this->_imitate_page(0,$page_size, $page);
+    }
+
+
+
+    /**
+     * 模拟分页
+     * @param $total
+     * @param $limit
+     * @param $current_page
+     * @return array
+     * @author ChingLi
+     */
+    private function _imitate_page($total, $limit, $current_page)
+    {
+        if ($total <= 0){
+            return [
+                'total' => 0,
+                'per_page' => intval($limit),
+                'current_page' => 1,
+                'last_page' => 0,
+                'data' => []
+            ];
+        }
+
+        return [
+            'total' => $total,
+            'per_page' => intval($limit),
+            'current_page' => intval($current_page),
+            'last_page' => ceil($total / $limit),
+            'data' => []
+        ];
     }
 
     /**
      * 单条sql查询
      * @param string $index
      * @return array
-     * @author 李静
+     * @author ChingLi
      */
     public function find(string $index = '')
     {
@@ -222,7 +236,7 @@ class Query
      * ！！！请使用->whereOr([['id', '=', '1'], ['id', '=', '2']])->whereOr([['name', '=', '3'], ['title', '=', '4']])进行拼接！！！
      * @param string $map
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
     public function whereOr($map = [])
     {
@@ -332,7 +346,7 @@ class Query
      * 查询sql参数格式化
      * @param $map
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
     public function where($map = [])
     {
@@ -441,9 +455,9 @@ class Query
      * 查询sql参数格式化
      * @param $fields
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
-    public function whereNull($fields = [])
+    public function whereNotNull($fields = [])
     {
         foreach ($fields as $item) {
             self::$query['bool']['must'][] = [
@@ -460,9 +474,9 @@ class Query
      * 查询sql参数格式化
      * @param $fields
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
-    public function whereNotNull($fields = [])
+    public function whereNull($fields = [])
     {
         foreach ($fields as $item) {
             self::$query['bool']['must_not'][] = [
@@ -479,7 +493,7 @@ class Query
      * 查询封装
      * @param string $index
      * @return array|callable
-     * @author 李静
+     * @author ChingLi
      */
     private function _search(string $index = '')
     {
@@ -556,7 +570,7 @@ class Query
      * 统计查询
      * @param string $index
      * @return int
-     * @author 李静
+     * @author ChingLi
      */
     public function count(string $index = '')
     {
@@ -583,7 +597,7 @@ class Query
      * @param string $field
      * @param string $index
      * @return int
-     * @author 李静
+     * @author ChingLi
      */
     public function sum(string $field = '', string $index = '')
     {
@@ -618,14 +632,10 @@ class Query
      * @param $in_map
      * @param $field
      * @return array
-     * @author 李静
+     * @author ChingLi
      */
     public function groupCount($in_map = [], $field = '')
     {
-        /*$param = [
-            'size'  => 0,
-            "query" => ["bool" => ["must"=>[["terms"=>['tender_principal'=>$principal_ids]],]]],"aggs"=>["tender_principals"=>["terms"=>["field"=>"tender_principal",],"aggs"=>["num"=>["value_count"=>["field"=>"id"]],]]]
-        ];*/
         $field = $field?: 'id';
         $param = [
             'size'  => 0,
@@ -642,7 +652,6 @@ class Query
     public function order($order = [])
     {
         $order_list = [];
-//        $order_list[]['_score']['order'] = 'desc';
         foreach ($order as $key => $value) {
             $order_list[][$key]['order'] = $value;
         }
@@ -655,7 +664,7 @@ class Query
      * 查询条数
      * @param $num
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
     public function offset($num = 0)
     {
@@ -668,7 +677,7 @@ class Query
      * 查询条数
      * @param $num
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
     public function limit($num = 0)
     {
@@ -681,7 +690,7 @@ class Query
      * 查询是否高亮
      * @param $fields
      * @return $this
-     * @author 李静
+     * @author ChingLi
      */
     public function highlight($fields = [])
     {

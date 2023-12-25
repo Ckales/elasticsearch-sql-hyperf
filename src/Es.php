@@ -3,6 +3,7 @@
 namespace Es;
 
 use Es\Builder\Connection;
+use Es\Builder\Query;
 
 /**
  * Class Db
@@ -31,7 +32,7 @@ class Es
         // 防止克隆
     }
 
-    private function __wakeup()
+    public function __wakeup()
     {
         // 防止反序列化
     }
@@ -41,7 +42,7 @@ class Es
 
         self::$client = Connection::instance($config_name);
 
-        return self::$client;
+        return new Query(self::$client);
     }
 
     public static function __callStatic($method, $args)

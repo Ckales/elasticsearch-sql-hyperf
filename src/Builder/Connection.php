@@ -8,6 +8,8 @@ use Hyperf\Contract\ConfigInterface;
 
 abstract class Connection
 {
+    protected static $instance = [];
+
     // 连接参数配置
     protected $config = [
         // 服务器地址
@@ -53,13 +55,14 @@ abstract class Connection
         // 如果在协程环境下创建，则会自动使用协程版的 Handler，非协程环境下无改变
         $builder = $container->get(ClientBuilderFactory::class)->create();
 
-        return $builder->setSSLVerification(false)
+        self::$instance = $builder->setSSLVerification(false)
             ->setBasicAuthentication($config['user'], $config['password'])
             ->setHosts([$config['host']])
             ->setConnectionPool('\Elasticsearch\ConnectionPool\SimpleConnectionPool', [])
             ->setRetries($config['retries'])
             ->build();
 
+        return self::$instance;
     }
 
 }
