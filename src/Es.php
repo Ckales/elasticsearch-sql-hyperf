@@ -6,7 +6,7 @@ use Es\Builder\Connection;
 use Es\Builder\Query;
 
 /**
- * Class Db
+ * Class Es
  * @package chingli
  * @method \Es\Builder\Query index(string $index) static 索引，对应的mysql的表
  * @method \Es\Builder\Query search() static 从主服务器读取数据

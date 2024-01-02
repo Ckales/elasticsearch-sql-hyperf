@@ -4,7 +4,7 @@
 # 安装
 
 ```php
-composer require chingli/elasticsearch-sql-hyperf
+composer require ckales/elasticsearch-sql-hyperf
 ```
 
 # 依赖
@@ -35,6 +35,40 @@ return [
         'retries'	=> 5, // 重试次数
     ],
 ];
+
+```
+
+# 使用方法
+
+```php
+<?php
+
+use Es\Es;
+
+// 完全匹配上才可以返回结果
+$map = [
+    ['status', '=', 1],
+    ['title', 'like', '搜索%'],
+    ['create_at', 'between', [date('Y-m-d H:i:s', time() - 86400), date('Y-m-d H:i:s')]]
+];
+
+// 必须匹配到其中一个
+$region_map = [
+    ['province', '=', '安徽'],
+    ['province', 'in', ['湖北', '上海']],
+];
+
+// 必须匹配到其中一个
+$keyword_map = [
+    ['show_tag', 'like', '%钢铁%'],
+    ['hide_tag', 'like', '%材料%'],
+];
+
+Es::index('bm_message')
+    ->where($map)
+    ->whereOr($region_map)
+    ->whereOr($keyword_map)
+    ->paginate();
 
 ```
 
