@@ -182,14 +182,14 @@ class Query
                 $list = [];
             }
 
-            $total = $abc;
             $data = $this->_imitate_page($total,$page_size, $page);
             $data['data'] = $list;
 
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
+            $data = $this->_imitate_page(0,$page_size, $page);
         }
-        return $this->_imitate_page(0,$page_size, $page);
+        return $data;
     }
 
 
