@@ -1,12 +1,12 @@
 {
-    "name": "chingli/elasticsearch-sql-hyperf",
+    "name": "ckales/elasticsearch-sql-hyperf",
     "description": "SQL formatting of Elasticsearch in Hyperf",
     "type": "library",
     "license": "MIT",
     "authors": [
         {
-            "name": "ChingLi",
-            "email": "chinglinet@msn.com"
+            "name": "Ckales",
+            "email": "41631@qq.com"
         }
     ],
     "require": {
