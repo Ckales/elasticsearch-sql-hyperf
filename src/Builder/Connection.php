@@ -45,12 +45,8 @@ abstract class Connection
      * @access public
      * @return Connection
      */
-    public static function instance($config_name = 'default')
+    public static function instance($config = [])
     {
-
-        $container = ApplicationContext::getContainer();
-        $config = $container->get(ConfigInterface::class)->get("elasticsearch.{$config_name}");
-
         $container = ApplicationContext::getContainer();
         // 如果在协程环境下创建，则会自动使用协程版的 Handler，非协程环境下无改变
         $builder = $container->get(ClientBuilderFactory::class)->create();

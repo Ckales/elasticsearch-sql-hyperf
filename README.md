@@ -14,6 +14,7 @@ composer require ckales/elasticsearch-sql-hyperf
 "require": {
     "php": ">=7.4",
     "hyperf/elasticsearch": "3.0.*",
+    "hyperf/logger": "^3.0"
 }
 
 ```
@@ -29,10 +30,12 @@ declare(strict_types=1);
 
 return [
     'default' => [
-        'host' 		=> 'xxx', // es地址
-        'user' 		=> 'xxx', // 用户名
-        'password' 	=> 'xxx', // 密码
-        'retries'	=> 5, // 重试次数
+        'host' 		    => 'xxx', // es地址
+        'user' 		    => 'xxx', // 用户名
+        'password' 	    => 'xxx', // 密码
+        'retries'	    => 5, // 重试次数
+        'debug'	        => false, // 调试模式，true时会输入转换后es搜索格式
+        'log_config'    => default, // hyperf日志配置名称，config/autoload/logger.php中配置
     ],
 ];
 

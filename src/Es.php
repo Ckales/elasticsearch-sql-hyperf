@@ -4,6 +4,8 @@ namespace Es;
 
 use Es\Builder\Connection;
 use Es\Builder\Query;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\ConfigInterface;
 
 /**
  * Class Es
@@ -40,9 +42,16 @@ class Es
     public static function connect($config_name = 'default')
     {
 
-        self::$client = Connection::instance($config_name);
+        $container = ApplicationContext::getContainer();
+        $config = $container->get(ConfigInterface::class)->get("elasticsearch.{$config_name}");
 
-        return new Query(self::$client);
+        if(empty($config)){
+            throw new \Exception('Elasticsearch config not found');
+        }
+
+        self::$client = Connection::instance($config);
+
+        return new Query(self::$client, $config);
     }
 
     public static function __callStatic($method, $args)

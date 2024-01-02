@@ -3,6 +3,10 @@
 namespace Es\Builder;
 
 use Es\Es;
+use Hyperf\Context\ApplicationContext;
+use Hyperf\Contract\ConfigInterface;
+use Psr\Log\LoggerInterface;
+use Hyperf\Logger\LoggerFactory;
 
 class Query
 {
@@ -21,14 +25,18 @@ class Query
     private static $size;
     private static $from;
     private static $highlight;
+    private static $debug = false;
+    protected LoggerInterface $logger;
 
-    public function __construct($client = null)
+    public function __construct($client = null, $config = [])
     {
         if (is_null($client)) {
             $this->client = Es::connect();
         } else {
             $this->client = $client;
         }
+
+        $this->logger = ApplicationContext::getContainer()->get(LoggerFactory::class)->get('elasticsearch-sql-hyperf', $config['log_config'] ?? 'default');
 
         self::$index = '';
         self::$order = [];
@@ -38,6 +46,7 @@ class Query
         self::$from = 0;
         self::$size = 0;
         self::$highlight = [];
+        self::$debug = $config['debug'] ?? false;
     }
 
     public function index($index = '')
@@ -57,7 +66,8 @@ class Query
                 ];
                 return $result = $this->client->exists($params);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return false;
     }
@@ -73,7 +83,8 @@ class Query
                 ];
                 return $result = $this->client->get($params);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -100,7 +111,8 @@ class Query
                 unset($params);
                 return $result;
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -115,13 +127,14 @@ class Query
             ];
             $result = $this->client->search($params);
             return $result;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
 
     /**
-     * 多条sql查询
+     * 多条数据查询
      * @param string $index
      * @return array
      * @author ChingLi
@@ -139,6 +152,7 @@ class Query
             }
             return $list;
         } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -168,11 +182,12 @@ class Query
                 $list = [];
             }
 
+            $total = $abc;
             $data = $this->_imitate_page($total,$page_size, $page);
             $data['data'] = $list;
 
-            return $data;
         } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return $this->_imitate_page(0,$page_size, $page);
     }
@@ -209,7 +224,7 @@ class Query
     }
 
     /**
-     * 单条sql查询
+     * 单条数据查询
      * @param string $index
      * @return array
      * @author ChingLi
@@ -225,6 +240,7 @@ class Query
 
             return $result['hits']['hits'][0]['_source'] ?? [];
         } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -243,7 +259,7 @@ class Query
         $temp_query = [];
         foreach ($map as $item) {
             if(count($item) != 3){
-                Throw new \Exception("sql格式错误");
+                Throw new \Exception("格式错误");
             }
             switch ($item[1]) {
                 case '=':
@@ -291,7 +307,7 @@ class Query
                     break;
                 case 'between':
                     if(count($item[2])!=2){
-                        Throw new \Exception("sql格式between错误");
+                        Throw new \Exception("格式between错误");
                     }
                     $temp_query[] = [
                         "range" => [
@@ -328,7 +344,7 @@ class Query
                     break;
 
                 default:
-                    Throw new \Exception("sql格式错误");
+                    Throw new \Exception("格式错误");
             }
         }
         if(!empty($temp_query)){
@@ -343,7 +359,7 @@ class Query
     }
 
     /**
-     * 查询sql参数格式化
+     * 查询参数格式化
      * @param $map
      * @return $this
      * @author ChingLi
@@ -352,7 +368,7 @@ class Query
     {
         foreach ($map as $item) {
             if(count($item) != 3){
-                Throw new \Exception("sql格式错误");
+                Throw new \Exception("格式错误");
             }
             switch ($item[1]) {
                 case '=':
@@ -408,7 +424,7 @@ class Query
                     break;
                 case 'between':
                     if(count($item[2])!=2){
-                        Throw new \Exception("sql格式between错误");
+                        Throw new \Exception("格式between错误");
                     }
                     self::$query['bool']['must'][] = [
                         "range" => [
@@ -444,7 +460,7 @@ class Query
                     ];
                     break;
                 default:
-                    Throw new \Exception("sql格式错误");
+                    Throw new \Exception("格式错误");
             }
         }
 
@@ -452,7 +468,7 @@ class Query
     }
 
     /**
-     * 查询sql参数格式化
+     * 查询参数格式化
      * @param $fields
      * @return $this
      * @author ChingLi
@@ -471,7 +487,7 @@ class Query
     }
 
     /**
-     * 查询sql参数格式化
+     * 查询参数格式化
      * @param $fields
      * @return $this
      * @author ChingLi
@@ -537,9 +553,14 @@ class Query
             'body' => $body
         ];
 
-        Log::debug('最终请求参数==========', json_encode($params, JSON_UNESCAPED_UNICODE));
+        if(self::$debug){
+            $this->logger->debug('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE));
+        }
         $result = $this->client->search($params);
-//        Log::debug('最终请求数据==========', json_encode($result, JSON_UNESCAPED_UNICODE));
+
+        if(self::$debug){
+//            $this->logger->debug('最终请求数据==========' . json_encode($result, JSON_UNESCAPED_UNICODE));
+        }
         if(!empty($result['hits']['hits']) && !empty($body['highlight']['fields'])){
             $hightlight_field = array_keys($body['highlight']['fields']);
 
@@ -567,7 +588,7 @@ class Query
     }
 
     /**
-     * 统计查询
+     * 聚合count查询
      * @param string $index
      * @return int
      * @author ChingLi
@@ -588,12 +609,13 @@ class Query
             $result = $this->client->count($params);
             return intval($result['count'] ?? 0);
         } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return 0;
     }
 
     /**
-     * 统计查询
+     * 聚合sum查询
      * @param string $field
      * @param string $index
      * @return int
@@ -623,6 +645,7 @@ class Query
             $result = $this->client->search($params);
             return intval($result['aggregations']['sum']['value'] ?? 0);
         } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return 0;
     }
@@ -639,7 +662,7 @@ class Query
         $field = $field?: 'id';
         $param = [
             'size'  => 0,
-            "query" => ["bool" => ["must"=>[["terms"=>$in_map],]]],"aggs"=>["tender_principal"=>["terms"=>["field"=>$field,],"aggs"=>["group_get_num"=>["value_count"=>["field"=>$field]],]]]
+            "query" => ["bool" => ["must"=>[["terms"=>$in_map],]]],"aggs"=>["t_p"=>["terms"=>["field"=>$field,],"aggs"=>["group_get_num"=>["value_count"=>["field"=>$field]],]]]
         ];
         $data = $this->search($param);
         $data = $data['aggregations']['tender_principal']['buckets'] ?? [];
@@ -726,7 +749,8 @@ class Query
                 ];
                 return $result = $this->client->delete($params);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -746,7 +770,8 @@ class Query
                     return $result = $this->client->create($params);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -766,7 +791,8 @@ class Query
                     return $result = $this->client->update($params);
                 }
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -780,7 +806,8 @@ class Query
                 'body' => $body
             ];
             return $result = $this->client->indices()->create($params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -793,7 +820,8 @@ class Query
                 'index' => self::$index
             ];
             return $result = $this->client->indices()->delete($params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
     }
@@ -806,9 +834,27 @@ class Query
                 'index' => self::$index
             ];
             return $result = $this->client->indices()->get($params);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
         }
         return [];
+    }
+
+    /**
+     * 异常信息格式化
+     * @param \Throwable $e
+     * @return string
+     * @author ChingLi
+     */
+    private function _print_exception_info(\Throwable $e, $log_level = 'error')
+    {
+        $infoStr = ' err_code:' . $e->getCode() . PHP_EOL
+            . ' err_msg:' . $e->getMessage() . PHP_EOL
+            . ' err_file:' . $e->getFile() . PHP_EOL
+            . ' err_line:' . $e->getLine() . PHP_EOL
+            . ' err_trace:' . PHP_EOL
+            . $e->getTraceAsString();
+        $this->logger->{$log_level}($infoStr);
     }
 
 }
