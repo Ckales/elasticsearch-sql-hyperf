@@ -67,7 +67,7 @@ $keyword_map = [
     ['hide_tag', 'like', '%材料%'],
 ];
 
-Es::index('bm_message')
+Es::index('索引（类似mysql表名）')
     ->where($map)
     ->whereOr($region_map)
     ->whereOr($keyword_map)
