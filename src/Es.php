@@ -9,7 +9,7 @@ use Hyperf\Contract\ConfigInterface;
 
 /**
  * Class Es
- * @package chingli
+ * @package ckales
  * @method \Es\Builder\Query index(string $index) static 索引，对应的mysql的表
  * @method \Es\Builder\Query search() static 从主服务器读取数据
  * @method \Es\Builder\Query select() static 从主服务器读取数据
@@ -39,6 +39,11 @@ class Es
         // 防止反序列化
     }
 
+    /**
+     * 连接es
+     * @param $config_name
+     * @return Query
+     */
     public static function connect($config_name = 'default')
     {
 
@@ -54,6 +59,13 @@ class Es
         return new Query(self::$client, $config);
     }
 
+    /**
+     * 静态化访问
+     * @param $method
+     * @param $args
+     * @return mixed
+     * @author 李静
+     */
     public static function __callStatic($method, $args)
     {
         return call_user_func_array([static::connect(), $method], $args);

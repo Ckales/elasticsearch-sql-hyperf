@@ -2,6 +2,7 @@
 
 namespace Es\Builder;
 
+use Elasticsearch\Client;
 use Es\Es;
 use Hyperf\Context\ApplicationContext;
 use Hyperf\Contract\ConfigInterface;
@@ -13,10 +14,10 @@ class Query
 
     /**
      * 当前es连接对象
-     * @var Connection
+     * @var Client
      */
-
     protected $client;
+
     private static $index;
     private static $order;
     private static $aggs;
@@ -28,7 +29,7 @@ class Query
     private static $debug = false;
     protected LoggerInterface $logger;
 
-    public function __construct($client = null, $config = [])
+    public function __construct(Client $client = null, $config = [])
     {
         if (is_null($client)) {
             $this->client = Es::connect();
@@ -49,12 +50,23 @@ class Query
         self::$debug = $config['debug'] ?? false;
     }
 
+    /**
+     * 设置索引
+     * @param string $index
+     * @return $this
+     */
     public function index($index = '')
     {
         self::$index = $index;
         return $this;
     }
 
+    /**
+     * 判断文档是否存在
+     * @param int $id 文档id
+     * @param string $index 索引
+     * @return bool
+     */
     public function exists(int $id = 0, string $index = '')
     {
         try {
@@ -72,6 +84,12 @@ class Query
         return false;
     }
 
+    /**
+     * 获取一个文档
+     * @param int $id 文档id
+     * @param string $index 索引
+     * @return array
+     */
     public function get(int $id = 0, string $index = '')
     {
         try {
@@ -89,7 +107,12 @@ class Query
         return [];
     }
 
-
+    /**
+     * 批量插入数据
+     * @param array $list
+     * @param string $index
+     * @return array
+     */
     public function batchIndex(array $list = [], string $index = '')
     {
         try {
@@ -117,6 +140,12 @@ class Query
         return [];
     }
 
+    /**
+     * 自行组装查询条件进行列表查询
+     * @param array $query
+     * @param string $index
+     * @return array|callable
+     */
     public function search(array $query = [], string $index = '')
     {
         try {
@@ -738,6 +767,12 @@ class Query
         return $this;
     }
 
+    /**
+     * 删除一条数据
+     * @param int $id
+     * @param string $index
+     * @return array
+     */
     public function delete(int $id = 0, string $index = '')
     {
         try {
@@ -755,6 +790,13 @@ class Query
         return [];
     }
 
+    /**
+     * 创建一条数据
+     * @param array $data
+     * @param string $index
+     * @return array
+     * @author 李静
+     */
     public function create(array $data = [], string $index = '')
     {
         try {
@@ -776,6 +818,12 @@ class Query
         return [];
     }
 
+    /**
+     * 更新一条数据
+     * @param array $data
+     * @param string $index
+     * @return array
+     */
     public function update(array $data = [], string $index = '')
     {
         try {
@@ -797,6 +845,12 @@ class Query
         return [];
     }
 
+    /**
+     * 创建索引
+     * @param array $body
+     * @param string $index
+     * @return array
+     */
     public function createIndex(array $body = [], string $index = '')
     {
         try {
@@ -812,6 +866,11 @@ class Query
         return [];
     }
 
+    /**
+     * 删除索引
+     * @param string $index
+     * @return array
+     */
     public function deleteIndex(string $index = '')
     {
         try {
@@ -826,6 +885,12 @@ class Query
         return [];
     }
 
+    /**
+     * 获取索引信息
+     * @param string $index
+     * @return array
+     * @author 李静
+     */
     public function getIndex(string $index = '')
     {
         try {
