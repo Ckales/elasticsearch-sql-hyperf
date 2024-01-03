@@ -8,7 +8,7 @@ use Hyperf\Contract\ConfigInterface;
 
 abstract class Connection
 {
-    protected static $instance = [];
+    protected static $instance = null;
 
     // 连接参数配置
     protected static $config = [
@@ -50,16 +50,19 @@ abstract class Connection
             self::$config = array_merge(self::$config, $config);
         }
 
-        $container = ApplicationContext::getContainer();
-        // 如果在协程环境下创建，则会自动使用协程版的 Handler，非协程环境下无改变
-        $builder = $container->get(ClientBuilderFactory::class)->create();
+        if(is_null(self::$instance)){
+            $container = ApplicationContext::getContainer();
+            // 如果在协程环境下创建，则会自动使用协程版的 Handler，非协程环境下无改变
+            $builder = $container->get(ClientBuilderFactory::class)->create();
 
-        self::$instance = $builder->setSSLVerification(false)
-            ->setBasicAuthentication($config['user'], $config['password'])
-            ->setHosts([$config['host']])
-            ->setConnectionPool('\Elasticsearch\ConnectionPool\SimpleConnectionPool', [])
-            ->setRetries($config['retries'])
-            ->build();
+            self::$instance = $builder->setSSLVerification(false)
+                ->setBasicAuthentication($config['user'], $config['password'])
+                ->setHosts([$config['host']])
+                ->setConnectionPool('\Elasticsearch\ConnectionPool\SimpleConnectionPool', [])
+                ->setRetries($config['retries'])
+                ->build();
+
+        }
 
         return self::$instance;
     }
