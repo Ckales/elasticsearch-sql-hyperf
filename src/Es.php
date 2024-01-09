@@ -21,7 +21,7 @@ use Hyperf\Contract\ConfigInterface;
  * @method \Es\Builder\Query limit($num = 0) static 查询条数
  * @method \Es\Builder\Query highlight($fields = []) static 字段高亮，格式['title', 'name']
  * @method \Es\Builder\Query order($order = []) static 排序方式,格式['_score' => 'desc', 'create_at' => 'asc']
- * @method \Es\Builder\Query groupCount($field = '') static 对count($field) group by $field 进行封装，对应mysql select count({$field}) from table group by {$field}
+ * @method \Es\Builder\Query groupAggs($aggs = [], $group_by_field = '') static 对count(*) group by 进行封装，对应mysql select count()，sum() from table group by {$group_by_field}
  */
 class Es
 {

@@ -26,6 +26,7 @@ class Query
     private static $size;
     private static $from;
     private static $highlight;
+    private static $_source;
     private static $debug = false;
     protected LoggerInterface $logger;
 
@@ -47,6 +48,7 @@ class Query
         self::$from = 0;
         self::$size = 0;
         self::$highlight = [];
+        self::$_source = [];
         self::$debug = $config['debug'] ?? false;
     }
 
@@ -535,6 +537,20 @@ class Query
     }
 
     /**
+     * 查询字段
+     * @param $fileds
+     * @return $this
+     */
+    public function field($fileds = [])
+    {
+        if(!empty($fileds) && is_array($fileds)){
+            self::$_source = $fileds;
+        }
+
+        return $this;
+    }
+
+    /**
      * 查询封装
      * @param string $index
      * @return array|callable
@@ -581,6 +597,10 @@ class Query
             'index' => self::$index,
             'body' => $body
         ];
+
+        if(!empty(self::$_source)){
+            $params['_source'] = self::$_source;
+        }
 
         if(self::$debug){
             $this->logger->debug('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE));
@@ -681,34 +701,84 @@ class Query
 
     /**
      * 对count(*) group by 进行封装
-     * 对应mysql select count({$field}) from table group by {$field}
-     * @param $field
+     * 对应mysql select count()，sum() from table group by {$group_by_field}
+     * @param $aggs array 聚合查询，格式：
+     * [
+     *      ['字段', '聚合查询类型', '别名']
+     *      ['num', 'sum', 'total_num']
+     *      ['id', 'count', 'total_count']
+     * ]
+     * @param $group_by_field string group by字段
+     * 支持链式order方法、imit方法
      * @return array
-     * @author ChingLi
+     * @throws \Exception
+     * @author 李静
      */
-    public function groupCount($field = '')
+    public function groupAggs($aggs = [], $group_by_field = '')
     {
+        if(empty($aggs) || empty($group_by_field)){
+            return [];
+        }
+
         $group_key = 'group_num_key';
-        $group_value = 'group_num_value';
-        $field = $field?: 'id';
+
         $param = [
             'size'  => 0,
             "query" => self::$query,
-            "aggs"=>[
-                $group_key=>[
-                    "terms"=>["field"=>$field,],
-                    "aggs"=>[
-                        $group_value=>["value_count"=>["field"=>$field]],
-                    ]
-                ]
+        ];
+
+        $aggs_query = [
+            $group_key=>[
+                "terms"=>["field"=>$group_by_field,]
             ]
         ];
+
+        // 排序方式
+        if(!empty(self::$order)){
+            foreach (self::$order as $key => $item) {
+                $temp_key = key($item);
+                $aggs_query[$group_key]['terms']['order'][$temp_key] = $item[$temp_key]['order'];
+            }
+        }
+
+        // 筛选数量
+        if(!empty(self::$size)){
+            $aggs_query[$group_key]['terms']['size'] = self::$size;
+        }
+
+        foreach ($aggs as $item) {
+            if(count($item) != 3){
+                Throw new \Exception("格式错误");
+            }
+
+            if(!in_array($item[1], ['count', 'value_count', 'sum', 'avg'])){
+                Throw new \Exception("查询类型错误");
+            }
+            if($item[1] == 'count'){
+                $item['1'] = 'value_count';
+            }
+
+            $aggs_query[$group_key]['aggs'][$item[2]] = [$item[1]=>["field"=>$item[0]]];
+        }
+
+        $param['aggs'] = $aggs_query;
+
         // 进行数据查询
-        $data = $this->search($param);
-        $data = $data['aggregations'][$group_key]['buckets'] ?? [];
-        $data = array_column($data, $group_value, 'key');
-        // 将查询出的数据进行整合
-        $data = array_combine(array_keys($data), array_column($data, 'value'));
+        $res = $this->search($param);
+        $res = $res['aggregations'][$group_key]['buckets'] ?? [];
+
+        $data = [];
+        foreach ($res as $key => $value) {
+            $tmep_data = [
+                $group_by_field => $value['key'],
+            ];
+
+            foreach ($aggs as $item) {
+                $tmep_data[$item[2]] = $value[$item[2]]['value'];
+            }
+
+            $data[] = $tmep_data;
+        }
 
         return $data;
     }
