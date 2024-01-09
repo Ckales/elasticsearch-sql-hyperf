@@ -11,16 +11,17 @@ use Hyperf\Contract\ConfigInterface;
  * Class Es
  * @package ckales
  * @method \Es\Builder\Query index(string $index) static 索引，对应的mysql的表
- * @method \Es\Builder\Query search() static 从主服务器读取数据
- * @method \Es\Builder\Query select() static 从主服务器读取数据
- * @method \Es\Builder\Query paginate($page_size = 10, $page = 1) static 从主服务器读取数据
- * @method \Es\Builder\Query find() static 从主服务器读取数据
- * @method \Es\Builder\Query whereOr($map = []) static 从主服务器读取数据
- * @method \Es\Builder\Query where($map = []) static 从主服务器读取数据
- * @method \Es\Builder\Query offset($num = 0) static 从主服务器读取数据
- * @method \Es\Builder\Query limit($num = 0) static 从主服务器读取数据
- *  @method \Es\Builder\Query highlight($fields = []) static 从主服务器读取数据
- * @method \Es\Builder\Query order($order = []) static 从主服务器读取数据
+ * @method \Es\Builder\Query search() static 自行组装查询条件进行列表查询
+ * @method \Es\Builder\Query select() static 查询多条数据
+ * @method \Es\Builder\Query find() static 查询单条数据
+ * @method \Es\Builder\Query paginate($page_size = 10, $page = 1) static 分页器
+ * @method \Es\Builder\Query whereOr($map = []) static or查询条件
+ * @method \Es\Builder\Query where($map = []) static 查询条件
+ * @method \Es\Builder\Query offset($num = 0) static 起始位置
+ * @method \Es\Builder\Query limit($num = 0) static 查询条数
+ * @method \Es\Builder\Query highlight($fields = []) static 字段高亮，格式['title', 'name']
+ * @method \Es\Builder\Query order($order = []) static 排序方式,格式['_score' => 'desc', 'create_at' => 'asc']
+ * @method \Es\Builder\Query groupCount($in_map = [], $field = '') static 对count($field) group by $field 进行封装，对应mysql select count({$field}) from table where in {$in_map} group by {$field}
  */
 class Es
 {

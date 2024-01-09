@@ -716,6 +716,12 @@ class Query
         return $data;
     }
 
+    /**
+     * 排序方式
+     * 格式['_score' => 'desc', 'create_at' => 'asc']
+     * @param $order
+     * @return $this
+     */
     public function order($order = [])
     {
         $order_list = [];
@@ -728,7 +734,7 @@ class Query
     }
 
     /**
-     * 查询条数
+     * 起始位置
      * @param $num
      * @return $this
      * @author ChingLi
@@ -754,7 +760,8 @@ class Query
     }
 
     /**
-     * 查询是否高亮
+     * 字段高亮
+     * 格式['title', 'name']
      * @param $fields
      * @return $this
      * @author ChingLi
