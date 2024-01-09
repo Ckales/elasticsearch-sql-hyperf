@@ -680,7 +680,8 @@ class Query
     }
 
     /**
-     * 临时封装count(*) group 查询方法，其他人请勿使用
+     * 对count(*) group by 进行封装
+     * 对应mysql select count({$field}) from table where in {$in_map} group by {$field}
      * @param $in_map
      * @param $field
      * @return array
@@ -688,14 +689,28 @@ class Query
      */
     public function groupCount($in_map = [], $field = '')
     {
+        $group_key = 'group_num_key';
+        $group_value = 'group_num_value';
         $field = $field?: 'id';
         $param = [
             'size'  => 0,
-            "query" => ["bool" => ["must"=>[["terms"=>$in_map],]]],"aggs"=>["t_p"=>["terms"=>["field"=>$field,],"aggs"=>["group_get_num"=>["value_count"=>["field"=>$field]],]]]
+            "query" => [
+                "bool" => ["must"=>[["terms"=>$in_map],]]
+            ],
+            "aggs"=>[
+                $group_key=>[
+                    "terms"=>["field"=>$field,],
+                    "aggs"=>[
+                        $group_value=>["value_count"=>["field"=>$field]],
+                    ]
+                ]
+            ]
         ];
+        // 进行数据查询
         $data = $this->search($param);
-        $data = $data['aggregations']['tender_principal']['buckets'] ?? [];
-        $data = array_column($data, 'group_get_num', 'key');
+        $data = $data['aggregations'][$group_key]['buckets'] ?? [];
+        $data = array_column($data, $group_value, 'key');
+        // 将查询出的数据进行整合
         $data = array_combine(array_keys($data), array_column($data, 'value'));
 
         return $data;
