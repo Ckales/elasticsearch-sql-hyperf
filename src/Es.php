@@ -15,13 +15,13 @@ use Hyperf\Contract\ConfigInterface;
  * @method \Es\Builder\Query select() static 查询多条数据
  * @method \Es\Builder\Query find() static 查询单条数据
  * @method \Es\Builder\Query paginate($page_size = 10, $page = 1) static 分页器
- * @method \Es\Builder\Query whereOr($map = []) static or查询条件
- * @method \Es\Builder\Query where($map = []) static 查询条件
+ * @method \Es\Builder\Query whereOr($map = []) static or查询条件，格式及注意事项请参考README.md文档
+ * @method \Es\Builder\Query where($map = []) static 查询条件，格式请参考README.md文档
  * @method \Es\Builder\Query offset($num = 0) static 起始位置
  * @method \Es\Builder\Query limit($num = 0) static 查询条数
  * @method \Es\Builder\Query highlight($fields = []) static 字段高亮，格式['title', 'name']
  * @method \Es\Builder\Query order($order = []) static 排序方式,格式['_score' => 'desc', 'create_at' => 'asc']
- * @method \Es\Builder\Query groupCount($in_map = [], $field = '') static 对count($field) group by $field 进行封装，对应mysql select count({$field}) from table where in {$in_map} group by {$field}
+ * @method \Es\Builder\Query groupCount($field = '') static 对count($field) group by $field 进行封装，对应mysql select count({$field}) from table group by {$field}
  */
 class Es
 {

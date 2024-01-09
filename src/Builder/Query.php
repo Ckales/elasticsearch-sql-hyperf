@@ -681,22 +681,19 @@ class Query
 
     /**
      * 对count(*) group by 进行封装
-     * 对应mysql select count({$field}) from table where in {$in_map} group by {$field}
-     * @param $in_map
+     * 对应mysql select count({$field}) from table group by {$field}
      * @param $field
      * @return array
      * @author ChingLi
      */
-    public function groupCount($in_map = [], $field = '')
+    public function groupCount($field = '')
     {
         $group_key = 'group_num_key';
         $group_value = 'group_num_value';
         $field = $field?: 'id';
         $param = [
             'size'  => 0,
-            "query" => [
-                "bool" => ["must"=>[["terms"=>$in_map],]]
-            ],
+            "query" => self::$query,
             "aggs"=>[
                 $group_key=>[
                     "terms"=>["field"=>$field,],
