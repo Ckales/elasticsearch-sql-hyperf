@@ -355,7 +355,7 @@ class Query
                     }
                     $temp_query[] = [
                         "terms" => [
-                            $item[0] => $item[2]
+                            $item[0] => array_values($item[2])
                         ]
                     ];
                     break;
@@ -472,7 +472,7 @@ class Query
                     }
                     self::$query['bool']['must'][] = [
                         "terms" => [
-                            $item[0] => $item[2]
+                            $item[0] => array_values($item[2])
                         ]
                     ];
                     break;
@@ -702,6 +702,11 @@ class Query
     /**
      * 对count(*) group by 进行封装
      * 对应mysql select count()，sum() from table group by {$group_by_field}
+     * 请注意：
+     * ！！！
+     *  如果需要统计的字段是个数组，请勿使用，因为最终统计出的数量是数组的元素数量，而不是匹配的数量
+     *  例如聚合查询中[['order_ids', 'count', 'total_count']],，如果order_ids是个数组，最终查询到的是order_ids的元素数量
+     * ！！！
      * @param $aggs array 聚合查询，格式：
      * [
      *      ['字段', '聚合查询类型', '别名']
@@ -762,6 +767,10 @@ class Query
         }
 
         $param['aggs'] = $aggs_query;
+
+        if(self::$debug){
+            $this->logger->debug('最终请求参数==========' . json_encode($param, JSON_UNESCAPED_UNICODE));
+        }
 
         // 进行数据查询
         $res = $this->search($param);
