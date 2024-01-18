@@ -717,7 +717,6 @@ class Query
      * 支持链式order方法、imit方法
      * @return array
      * @throws \Exception
-     * @author 李静
      */
     public function groupAggs($aggs = [], $group_by_field = '')
     {
@@ -893,7 +892,6 @@ class Query
      * @param array $data
      * @param string $index
      * @return array
-     * @author 李静
      */
     public function create(array $data = [], string $index = '')
     {
@@ -987,7 +985,6 @@ class Query
      * 获取索引信息
      * @param string $index
      * @return array
-     * @author 李静
      */
     public function getIndex(string $index = '')
     {
