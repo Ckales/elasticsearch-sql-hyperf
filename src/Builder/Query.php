@@ -27,6 +27,7 @@ class Query
     private static $from;
     private static $highlight;
     private static $_source;
+    private static $_after_value;
     private static $debug = false;
     protected LoggerInterface $logger;
 
@@ -49,6 +50,7 @@ class Query
         self::$size = 0;
         self::$highlight = [];
         self::$_source = [];
+        self::$_after_value = [];
         self::$debug = $config['debug'] ?? false;
     }
 
@@ -554,6 +556,7 @@ class Query
      * 查询封装
      * @param string $index
      * @return array|callable
+     * @throws \Exception
      * @author ChingLi
      */
     private function _search(string $index = '')
@@ -577,8 +580,20 @@ class Query
             }
         }
 
-        if(!empty(self::$order)){
-            $body['sort'] = self::$order;
+        $order = self::$order;
+        if(!empty($order)){
+            $body['sort'] = $order;
+        }
+
+        $after_value = self::$_after_value;
+        if(!empty($after_value)){
+            if(!is_array($after_value)){
+                throw new \Exception('after_value必须是数组');
+            }
+            if(empty($order) || count($after_value) != count($order)){
+                throw new \Exception('after_value元素数量必须与order元素数量相同');
+            }
+            $body['search_after'] = $after_value;
         }
 
         if(self::$from){
@@ -830,6 +845,18 @@ class Query
     public function limit($num = 0)
     {
         self::$size = $num;
+
+        return $this;
+    }
+
+    /**
+     * search_after 深分页
+     * @param $after_value array 深分页值，需结合order使用，元素数量与order数量保持一致
+     * @return $this
+     */
+    public function search_after($after_value = [])
+    {
+        self::$_after_value = $after_value;
 
         return $this;
     }
