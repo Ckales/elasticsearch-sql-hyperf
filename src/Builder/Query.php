@@ -289,105 +289,16 @@ class Query
      */
     public function whereOr($map = [])
     {
-        $temp_query = [];
-        foreach ($map as $item) {
-            if(count($item) != 3){
-                Throw new \Exception("格式错误");
-            }
-            switch ($item[1]) {
-                case '=':
-                    $temp_query[] = [
-                        "term" => [
-                            $item[0] => $item[2]
-                        ]
-                    ];
-                    break;
-                case '>':
-                    $temp_query[] = [
-                        "range" => [
-                            $item[0] => [
-                                "gt" => $item[2],
-                            ]
-                        ]
-                    ];
-                    break;
-                case '>=':
-                    $temp_query[] = [
-                        "range" => [
-                            $item[0] => [
-                                "gte" => $item[2],
-                            ]
-                        ]
-                    ];
-                    break;
-                case '<':
-                    $temp_query[] = [
-                        "range" => [
-                            $item[0] => [
-                                "lt" => $item[2],
-                            ]
-                        ]
-                    ];
-                    break;
-                case '<=':
-                    $temp_query[] = [
-                        "range" => [
-                            $item[0] => [
-                                "lte" => $item[2],
-                            ]
-                        ]
-                    ];
-                    break;
-                case 'between':
-                    if(count($item[2])!=2){
-                        Throw new \Exception("格式between错误");
-                    }
-                    $temp_query[] = [
-                        "range" => [
-                            $item[0] => [
-                                "gte" => $item[2][0],
-                                "lte" => $item[2][1]
-                            ]
-                        ]
-                    ];
-                    break;
-                case 'in':
-                    if(!is_array($item[2])){
-                        $item[2] = explode(',', $item[2]);
-                    }
-                    $temp_query[] = [
-                        "terms" => [
-                            $item[0] => array_values($item[2])
-                        ]
-                    ];
-                    break;
-                case 'like':
-                    $temp_query[] = [
-                        "match_phrase" => [
-                            $item[0] => str_replace('%', '*', $item[2])
-                        ]
-                    ];
-                    break;
-                case 'vague_like':
-                    $temp_query[] = [
-                        "match" => [
-                            $item[0] => str_replace('%', '*', $item[2])
-                        ]
-                    ];
-                    break;
-
-                default:
-                    Throw new \Exception("格式错误");
-            }
-        }
-        if(!empty($temp_query)){
+        $query_list = $this->whereParse($map);
+        if(!empty($query_list)){
             self::$query['bool']['must'][] = [
                 "bool" => [
                     "minimum_should_match" => 1,
-                    "should" => $temp_query
+                    "should" => $query_list
                 ]
             ];
         }
+
         return $this;
     }
 
@@ -399,28 +310,37 @@ class Query
      */
     public function where($map = [])
     {
+        $query_list = $this->whereParse($map);
+        if(!empty($query_list)){
+            self::$query['bool']['must'] = $query_list;
+        }
+
+        return $this;
+    }
+
+    /**
+     * 查询条件格式化
+     * @param $map
+     * @return array
+     * @throws \Exception
+     */
+    public function whereParse($map = [])
+    {
+        $query_list = [];
         foreach ($map as $item) {
             if(count($item) != 3){
                 Throw new \Exception("格式错误");
             }
             switch ($item[1]) {
                 case '=':
-                    self::$query['bool']['must'][] = [
-                        "term" => [
-                            $item[0] => $item[2]
-                        ]
-                    ];
-                    break;
-                case '<>':
-                case '!=':
-                    self::$query['bool']['must_not'][] = [
+                    $query_list[] = [
                         "term" => [
                             $item[0] => $item[2]
                         ]
                     ];
                     break;
                 case '>':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "range" => [
                             $item[0] => [
                                 "gt" => $item[2],
@@ -429,7 +349,7 @@ class Query
                     ];
                     break;
                 case '>=':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "range" => [
                             $item[0] => [
                                 "gte" => $item[2],
@@ -438,7 +358,7 @@ class Query
                     ];
                     break;
                 case '<':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "range" => [
                             $item[0] => [
                                 "lt" => $item[2],
@@ -447,7 +367,7 @@ class Query
                     ];
                     break;
                 case '<=':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "range" => [
                             $item[0] => [
                                 "lte" => $item[2],
@@ -459,7 +379,7 @@ class Query
                     if(count($item[2])!=2){
                         Throw new \Exception("格式between错误");
                     }
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "range" => [
                             $item[0] => [
                                 "gte" => $item[2][0],
@@ -472,32 +392,33 @@ class Query
                     if(!is_array($item[2])){
                         $item[2] = explode(',', $item[2]);
                     }
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "terms" => [
                             $item[0] => array_values($item[2])
                         ]
                     ];
                     break;
                 case 'like':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "match_phrase" => [
                             $item[0] => str_replace('%', '*', $item[2])
                         ]
                     ];
                     break;
                 case 'vague_like':
-                    self::$query['bool']['must'][] = [
+                    $query_list[] = [
                         "match" => [
                             $item[0] => str_replace('%', '*', $item[2])
                         ]
                     ];
                     break;
+
                 default:
                     Throw new \Exception("格式错误");
             }
         }
 
-        return $this;
+        return $query_list;
     }
 
     /**
