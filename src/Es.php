@@ -12,8 +12,8 @@ use Hyperf\Contract\ConfigInterface;
  * @package ckales
  * @method \Es\Builder\Query index(string $index) static 索引，对应的mysql的表
  * @method \Es\Builder\Query search() static 自行组装查询条件进行列表查询
- * @method \Es\Builder\Query select() static 查询多条数据
- * @method \Es\Builder\Query find() static 查询单条数据
+ * @method \Es\Builder\Query first() static 查询单条数据
+ * @method \Es\Builder\Query get() static 查询多条数据
  * @method \Es\Builder\Query paginate($page_size = 10, $page = 1) static 分页器
  * @method \Es\Builder\Query whereOr($map = []) static or查询条件，格式及注意事项请参考README.md文档
  * @method \Es\Builder\Query where($map = []) static 查询条件，格式请参考README.md文档

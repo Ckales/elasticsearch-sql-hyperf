@@ -89,29 +89,6 @@ class Query
     }
 
     /**
-     * 获取一个文档
-     * @param int $id 文档id
-     * @param string $index 索引
-     * @return array
-     */
-    public function get(int $id = 0, string $index = '')
-    {
-        try {
-            $index && self::$index = $index;
-            if($id) {
-                $params = [
-                    'id' => $id,
-                    'index' => self::$index,
-                ];
-                return $result = $this->client->get($params);
-            }
-        } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
-        }
-        return [];
-    }
-
-    /**
      * 批量插入数据
      * @param array $list
      * @param string $index
@@ -145,6 +122,26 @@ class Query
     }
 
     /**
+     * 单条数据查询
+     * @return array
+     */
+    public function first()
+    {
+        try {
+
+            self::$from = 0;
+            self::$size = 1;
+
+            $result = $this->_search();
+
+            return $result['hits']['hits'][0]['_source'] ?? [];
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
+        }
+        return [];
+    }
+
+    /**
      * 自行组装查询条件进行列表查询
      * @param array $query
      * @param string $index
@@ -168,15 +165,19 @@ class Query
 
     /**
      * 多条数据查询
-     * @param string $index
+     * es原生查询规则，默认查询10条，如果需要查询更多，请链式limit()方法
      * @return array
-     * @author ChingLi
      */
-    public function select(string $index = '')
+    public function get($limit = 0)
     {
         try {
 
-            $result = $this->_search($index);
+            $limit = intval($limit);
+            if($limit > 0){
+                self::$size = $limit;
+            }
+
+            $result = $this->_search();
 
             if(!empty($result['hits']['hits'])){
                 $list = array_column($result['hits']['hits'], '_source');
@@ -194,9 +195,7 @@ class Query
      * 分页查询
      * @param $page_size
      * @param $page
-     * @param $index
      * @return array
-     * @author ChingLi
      */
     public function paginate($page_size = 10, $page = 1)
     {
@@ -205,7 +204,7 @@ class Query
             self::$from = ($page - 1) * $page_size;
             self::$size = $page_size;
 
-            $result = $this->_search(self::$index);
+            $result = $this->_search();
 
             $total = $result['hits']['total']['value'] ?? 0;
 
@@ -254,28 +253,6 @@ class Query
             'last_page' => ceil($total / $limit),
             'data' => []
         ];
-    }
-
-    /**
-     * 单条数据查询
-     * @param string $index
-     * @return array
-     * @author ChingLi
-     */
-    public function find(string $index = '')
-    {
-        try {
-
-            self::$from = 0;
-            self::$size = 1;
-
-            $result = $this->_search($index);
-
-            return $result['hits']['hits'][0]['_source'] ?? [];
-        } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
-        }
-        return [];
     }
 
     /**
@@ -464,7 +441,7 @@ class Query
      * @param $fileds
      * @return $this
      */
-    public function field($fileds = [])
+    public function select($fileds = [])
     {
         if(!empty($fileds) && is_array($fileds)){
             self::$_source = $fileds;
@@ -478,11 +455,9 @@ class Query
      * @param string $index
      * @return array|callable
      * @throws \Exception
-     * @author ChingLi
      */
-    private function _search(string $index = '')
+    private function _search()
     {
-        $index && self::$index = $index;
 
         $body = [];
         if(!empty(self::$query)){
@@ -574,14 +549,11 @@ class Query
 
     /**
      * 聚合count查询
-     * @param string $index
      * @return int
-     * @author ChingLi
      */
-    public function count(string $index = '')
+    public function count()
     {
         try {
-            $index && self::$index = $index;
 
             $body = [
                 "query" => self::$query,
@@ -606,10 +578,9 @@ class Query
      * @return int
      * @author ChingLi
      */
-    public function sum(string $field = '', string $index = '')
+    public function sum(string $field = '')
     {
         try {
-            $index && self::$index = $index;
 
             $body = [
                 "query" => self::$query,
@@ -784,7 +755,7 @@ class Query
 
     /**
      * 字段高亮
-     * 格式['title', 'name']
+     * 格式['title', 'name']，数组元素为需要高亮的字段
      * @param $fields
      * @return $this
      * @author ChingLi
@@ -815,13 +786,11 @@ class Query
     /**
      * 删除一条数据
      * @param int $id
-     * @param string $index
      * @return array
      */
-    public function delete(int $id = 0, string $index = '')
+    public function delete(int $id = 0)
     {
         try {
-            $index && self::$index = $index;
             if($id) {
                 $params = [
                     'index' => self::$index,
@@ -838,13 +807,11 @@ class Query
     /**
      * 创建一条数据
      * @param array $data
-     * @param string $index
      * @return array
      */
-    public function create(array $data = [], string $index = '')
+    public function create(array $data = [])
     {
         try {
-            $index && self::$index = $index;
             if(!empty($data)) {
                 $id = $data['id']?? 0;
                 if($id) {
@@ -865,13 +832,11 @@ class Query
     /**
      * 更新一条数据
      * @param array $data
-     * @param string $index
      * @return array
      */
-    public function update(array $data = [], string $index = '')
+    public function update(array $data = [])
     {
         try {
-            $index && self::$index = $index;
             if(!empty($data)) {
                 $id = $data['id']?? 0;
                 if($id) {
@@ -895,10 +860,9 @@ class Query
      * @param string $index
      * @return array
      */
-    public function createIndex(array $body = [], string $index = '')
+    public function createIndex(array $body = [])
     {
         try {
-            $index && self::$index = $index;
             $params = [
                 'index' => self::$index,
                 'body' => $body
@@ -912,13 +876,11 @@ class Query
 
     /**
      * 删除索引
-     * @param string $index
      * @return array
      */
-    public function deleteIndex(string $index = '')
+    public function deleteIndex()
     {
         try {
-            $index && self::$index = $index;
             $params = [
                 'index' => self::$index
             ];
@@ -931,13 +893,11 @@ class Query
 
     /**
      * 获取索引信息
-     * @param string $index
      * @return array
      */
-    public function getIndex(string $index = '')
+    public function getIndex()
     {
         try {
-            $index && self::$index = $index;
             $params = [
                 'index' => self::$index
             ];
