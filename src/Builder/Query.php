@@ -165,7 +165,7 @@ class Query
 
     /**
      * 多条数据查询
-     * es原生查询规则，默认查询10条，如果需要查询更多，请链式limit()方法
+     * es原生查询规则，默认查询10条，如果需要查询更多，请链式limit()方法或直接在get中传入limit
      * @return array
      */
     public function get($limit = 0)
@@ -193,8 +193,8 @@ class Query
 
     /**
      * 分页查询
-     * @param $page_size
-     * @param $page
+     * @param $page_size int 分页偏移量
+     * @param $page int 分页页码
      * @return array
      */
     public function paginate($page_size = 10, $page = 1)
@@ -228,9 +228,9 @@ class Query
 
     /**
      * 模拟分页
-     * @param $total
-     * @param $limit
-     * @param $current_page
+     * @param $total int 总条数
+     * @param $limit int 分页偏移量
+     * @param $current_page int 当前页码
      * @return array
      * @author ChingLi
      */
@@ -260,9 +260,8 @@ class Query
      * 注意！！！当多个不同的whereOR条件查询时，请使用多个whereOr进行拼接！！！
      * ！！！例如：MYSQL中 where (id = '1' or id = '2') and (name = '3' or title = '4')！！！
      * ！！！请使用->whereOr([['id', '=', '1'], ['id', '=', '2']])->whereOr([['name', '=', '3'], ['title', '=', '4']])进行拼接！！！
-     * @param string $map
+     * @param array $map 查询条件
      * @return $this
-     * @author ChingLi
      */
     public function whereOr($map = [])
     {
@@ -281,9 +280,8 @@ class Query
 
     /**
      * 查询参数格式化
-     * @param $map
+     * @param $map array 查询条件
      * @return $this
-     * @author ChingLi
      */
     public function where($map = [])
     {
@@ -297,7 +295,7 @@ class Query
 
     /**
      * 查询条件格式化
-     * @param $map
+     * @param $map array 查询条件
      * @return array
      * @throws \Exception
      */
