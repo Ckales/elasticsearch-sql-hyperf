@@ -18,17 +18,11 @@ class Query
      */
     protected $client;
 
-    private static $index;
-    private static $order;
-    private static $aggs;
-    private static $group;
-    private static $query;
-    private static $size;
-    private static $from;
-    private static $highlight;
-    private static $_source;
-    private static $_after_value;
-    private static $debug = false;
+    /**
+     * @var array 参数配置
+     */
+    private $options;
+
     protected LoggerInterface $logger;
 
     public function __construct(Client $client = null, $config = [])
@@ -41,17 +35,8 @@ class Query
 
         $this->logger = ApplicationContext::getContainer()->get(LoggerFactory::class)->get('elasticsearch-sql-hyperf', $config['log_config'] ?? 'default');
 
-        self::$index = '';
-        self::$order = [];
-        self::$aggs = [];
-        self::$group = [];
-        self::$query = [];
-        self::$from = 0;
-        self::$size = 0;
-        self::$highlight = [];
-        self::$_source = [];
-        self::$_after_value = [];
-        self::$debug = $config['debug'] ?? false;
+        $this->options = [];
+        $this->options['debug'] = $config['debug'] ?? false;
     }
 
     /**
@@ -61,12 +46,12 @@ class Query
      */
     public function index($index = '')
     {
-        self::$index = $index;
+        $this->options['index'] = $index;
         return $this;
     }
 
     /**
-     * 判断文档是否存在
+     * 判断数据是否存在
      * @param int $id 文档id
      * @param string $index 索引
      * @return bool
@@ -74,11 +59,11 @@ class Query
     public function exists(int $id = 0, string $index = '')
     {
         try {
-            $index && self::$index = $index;
+            $index && $this->options['index'] = $index;
             if($id) {
                 $params = [
                     'id' => $id,
-                    'index' => self::$index,
+                    'index' => $this->options['index'],
                 ];
                 return $result = $this->client->exists($params);
             }
@@ -97,14 +82,14 @@ class Query
     public function batchIndex(array $list = [], string $index = '')
     {
         try {
-            $index && self::$index = $index;
+            $index && $this->options['index'] = $index;
             if(!empty($list)) {
                 $params = ['body'=>[]];
                 foreach ($list as $data) {
                     $id = $data['id'] ?? 0;
                     $params['body'][] = [
                         'index' => [     //注意这里的动作为index, 表示库中有就更新，没有就创建
-                            '_index' => self::$index,   //注意这里的字段前缀是_
+                            '_index' => $this->options['index'],   //注意这里的字段前缀是_
                             '_id'    => $id
                         ]
                     ];
@@ -129,8 +114,8 @@ class Query
     {
         try {
 
-            self::$from = 0;
-            self::$size = 1;
+            $this->options['from'] = 0;
+            $this->options['size'] = 1;
 
             $result = $this->_search();
 
@@ -150,9 +135,9 @@ class Query
     public function search(array $query = [], string $index = '')
     {
         try {
-            $index && self::$index = $index;
+            $index && $this->options['index'] = $index;
             $params = [
-                'index' => self::$index,
+                'index' => $this->options['index'],
                 'body' => $query
             ];
             $result = $this->client->search($params);
@@ -174,7 +159,7 @@ class Query
 
             $limit = intval($limit);
             if($limit > 0){
-                self::$size = $limit;
+                $this->options['size'] = $limit;
             }
 
             $result = $this->_search();
@@ -201,8 +186,8 @@ class Query
     {
         try {
             $page = max($page, 1);
-            self::$from = ($page - 1) * $page_size;
-            self::$size = $page_size;
+            $this->options['from'] = ($page - 1) * $page_size;
+            $this->options['size'] = $page_size;
 
             $result = $this->_search();
 
@@ -267,7 +252,7 @@ class Query
     {
         $query_list = $this->whereParse($map);
         if(!empty($query_list)){
-            self::$query['bool']['must'][] = [
+            $this->options['query']['bool']['must'][] = [
                 "bool" => [
                     "minimum_should_match" => 1,
                     "should" => $query_list
@@ -287,7 +272,7 @@ class Query
     {
         $query_list = $this->whereParse($map);
         if(!empty($query_list)){
-            self::$query['bool']['must'] = $query_list;
+            $this->options['query']['bool']['must'] = $query_list;
         }
 
         return $this;
@@ -405,7 +390,7 @@ class Query
     public function whereNotNull($fields = [])
     {
         foreach ($fields as $item) {
-            self::$query['bool']['must'][] = [
+            $this->options['query']['bool']['must'][] = [
                 "exists" => [
                     'field' => $item
                 ]
@@ -424,7 +409,7 @@ class Query
     public function whereNull($fields = [])
     {
         foreach ($fields as $item) {
-            self::$query['bool']['must_not'][] = [
+            $this->options['query']['bool']['must_not'][] = [
                 "exists" => [
                     'field' => $item
                 ]
@@ -442,7 +427,7 @@ class Query
     public function select($fileds = [])
     {
         if(!empty($fileds) && is_array($fileds)){
-            self::$_source = $fileds;
+            $this->options['_source'] = $fileds;
         }
 
         return $this;
@@ -458,28 +443,28 @@ class Query
     {
 
         $body = [];
-        if(!empty(self::$query)){
-            $body["query"] = self::$query;
+        if(!empty($this->options['query'])){
+            $body["query"] = $this->options['query'];
         }
 
-        if(!empty(self::$group)){
-            $body['aggs'] = ['group_by' => self::$group];
+        if(!empty($this->options['group'])){
+            $body['aggs'] = ['group_by' => $this->options['group']];
         }
 
-        if(!empty(self::$aggs)){
+        if(!empty($this->options['aggs'])){
             if(!empty($body['aggs'])){
-                $body['aggs']['group_by']['aggs'] = self::$aggs;
+                $body['aggs']['group_by']['aggs'] = $this->options['aggs'];
             }else{
-                $body['aggs'] = self::$aggs;
+                $body['aggs'] = $this->options['aggs'];
             }
         }
 
-        $order = self::$order;
+        $order = $this->options['order'];
         if(!empty($order)){
             $body['sort'] = $order;
         }
 
-        $after_value = self::$_after_value;
+        $after_value = $this->options['_after_value'];
         if(!empty($after_value)){
             if(!is_array($after_value)){
                 throw new \Exception('after_value必须是数组');
@@ -490,33 +475,33 @@ class Query
             $body['search_after'] = $after_value;
         }
 
-        if(self::$from){
-            $body['from'] = self::$from;
+        if($this->options['from']){
+            $body['from'] = $this->options['from'];
         }
 
-        if(self::$size){
-            $body['size'] = self::$size;
+        if($this->options['size']){
+            $body['size'] = $this->options['size'];
         }
 
-        if(!empty(self::$highlight)){
-            $body['highlight'] = self::$highlight;
+        if(!empty($this->options['highlight'])){
+            $body['highlight'] = $this->options['highlight'];
         }
 
         $params = [
-            'index' => self::$index,
+            'index' => $this->options['index'],
             'body' => $body
         ];
 
-        if(!empty(self::$_source)){
-            $params['_source'] = self::$_source;
+        if(!empty($this->options['_source'])){
+            $params['_source'] = $this->options['_source'];
         }
 
-        if(self::$debug){
+        if($this->options['debug']){
             $this->logger->debug('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE));
         }
         $result = $this->client->search($params);
 
-        if(self::$debug){
+        if($this->options['debug']){
 //            $this->logger->debug('最终请求数据==========' . json_encode($result, JSON_UNESCAPED_UNICODE));
         }
         if(!empty($result['hits']['hits']) && !empty($body['highlight']['fields'])){
@@ -535,13 +520,6 @@ class Query
             }
         }
 
-        self::$query = [];
-        self::$order = [];
-        self::$aggs = [];
-        self::$from = 0;
-        self::$size = 0;
-        self::$highlight = [];
-
         return $result;
     }
 
@@ -554,13 +532,13 @@ class Query
         try {
 
             $body = [
-                "query" => self::$query,
+                "query" => $this->options['query'],
             ];
             $params = [
-                'index' => self::$index,
+                'index' => $this->options['index'],
                 'body' => $body
             ];
-            self::$query = [];
+            $this->options['query'] = [];
             $result = $this->client->count($params);
             return intval($result['count'] ?? 0);
         } catch (\Throwable $e) {
@@ -581,7 +559,7 @@ class Query
         try {
 
             $body = [
-                "query" => self::$query,
+                "query" => $this->options['query'],
                 'size'  => 0,
                 'aggs' => [
                     'sum' => [
@@ -592,10 +570,10 @@ class Query
                 ]
             ];
             $params = [
-                'index' => self::$index,
+                'index' => $this->options['index'],
                 'body' => $body
             ];
-            self::$query = [];
+            $this->options['query'] = [];
             $result = $this->client->search($params);
             return intval($result['aggregations']['sum']['value'] ?? 0);
         } catch (\Throwable $e) {
@@ -633,7 +611,7 @@ class Query
 
         $param = [
             'size'  => 0,
-            "query" => self::$query,
+            "query" => $this->options['query'],
         ];
 
         $aggs_query = [
@@ -643,16 +621,16 @@ class Query
         ];
 
         // 排序方式
-        if(!empty(self::$order)){
-            foreach (self::$order as $key => $item) {
+        if(!empty($this->options['order'])){
+            foreach ($this->options['order'] as $key => $item) {
                 $temp_key = key($item);
                 $aggs_query[$group_key]['terms']['order'][$temp_key] = $item[$temp_key]['order'];
             }
         }
 
         // 筛选数量
-        if(!empty(self::$size)){
-            $aggs_query[$group_key]['terms']['size'] = self::$size;
+        if(!empty($this->options['size'])){
+            $aggs_query[$group_key]['terms']['size'] = $this->options['size'];
         }
 
         foreach ($aggs as $item) {
@@ -672,7 +650,7 @@ class Query
 
         $param['aggs'] = $aggs_query;
 
-        if(self::$debug){
+        if($this->options['debug']){
             $this->logger->debug('最终请求参数==========' . json_encode($param, JSON_UNESCAPED_UNICODE));
         }
 
@@ -709,7 +687,7 @@ class Query
             $order_list[][$key]['order'] = $value;
         }
 
-        self::$order = $order_list;
+        $this->options['order'] = $order_list;
         return $this;
     }
 
@@ -721,7 +699,7 @@ class Query
      */
     public function offset($num = 0)
     {
-        self::$from = $num;
+        $this->options['from'] = $num;
 
         return $this;
     }
@@ -734,7 +712,7 @@ class Query
      */
     public function limit($num = 0)
     {
-        self::$size = $num;
+        $this->options['size'] = $num;
 
         return $this;
     }
@@ -746,7 +724,7 @@ class Query
      */
     public function search_after($after_value = [])
     {
-        self::$_after_value = $after_value;
+        $this->options['_after_value'] = $after_value;
 
         return $this;
     }
@@ -775,7 +753,7 @@ class Query
                 "fields" => $highlight_fields,
             ];
 
-            self::$highlight = $highlight;
+            $this->options['highlight'] = $highlight;
         }
 
         return $this;
@@ -791,7 +769,7 @@ class Query
         try {
             if($id) {
                 $params = [
-                    'index' => self::$index,
+                    'index' => $this->options['index'],
                     'id' => $id
                 ];
                 return $result = $this->client->delete($params);
@@ -814,7 +792,7 @@ class Query
                 $id = $data['id']?? 0;
                 if($id) {
                     $params = [
-                        'index' => self::$index,
+                        'index' => $this->options['index'],
                         'id' => $id,
                         'body' => $data
                     ];
@@ -839,7 +817,7 @@ class Query
                 $id = $data['id']?? 0;
                 if($id) {
                     $params = [
-                        'index' => self::$index,
+                        'index' => $this->options['index'],
                         'id' => $id,
                         'body' => $data
                     ];
@@ -862,7 +840,7 @@ class Query
     {
         try {
             $params = [
-                'index' => self::$index,
+                'index' => $this->options['index'],
                 'body' => $body
             ];
             return $result = $this->client->indices()->create($params);
@@ -880,7 +858,7 @@ class Query
     {
         try {
             $params = [
-                'index' => self::$index
+                'index' => $this->options['index']
             ];
             return $result = $this->client->indices()->delete($params);
         } catch (\Throwable $e) {
@@ -897,7 +875,7 @@ class Query
     {
         try {
             $params = [
-                'index' => self::$index
+                'index' => $this->options['index']
             ];
             return $result = $this->client->indices()->get($params);
         } catch (\Throwable $e) {
