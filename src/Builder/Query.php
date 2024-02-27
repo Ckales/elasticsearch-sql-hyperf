@@ -459,12 +459,12 @@ class Query
             }
         }
 
-        $order = $this->options['order'];
+        $order = $this->options['order'] ?? [];
         if(!empty($order)){
             $body['sort'] = $order;
         }
 
-        $after_value = $this->options['_after_value'];
+        $after_value = $this->options['_after_value'] ?? [];
         if(!empty($after_value)){
             if(!is_array($after_value)){
                 throw new \Exception('after_value必须是数组');
@@ -475,11 +475,11 @@ class Query
             $body['search_after'] = $after_value;
         }
 
-        if($this->options['from']){
+        if(isset($this->options['from'])){
             $body['from'] = $this->options['from'];
         }
 
-        if($this->options['size']){
+        if(isset($this->options['size'])){
             $body['size'] = $this->options['size'];
         }
 
@@ -496,12 +496,12 @@ class Query
             $params['_source'] = $this->options['_source'];
         }
 
-        if($this->options['debug']){
+        if(!empty($this->options['debug'])){
             $this->logger->debug('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE));
         }
         $result = $this->client->search($params);
 
-        if($this->options['debug']){
+        if(!empty($this->options['debug'])){
 //            $this->logger->debug('最终请求数据==========' . json_encode($result, JSON_UNESCAPED_UNICODE));
         }
         if(!empty($result['hits']['hits']) && !empty($body['highlight']['fields'])){
@@ -530,6 +530,9 @@ class Query
     public function count()
     {
         try {
+            if(empty($this->options['query'])){
+                throw new \Exception('query条件不能为空');
+            }
 
             $body = [
                 "query" => $this->options['query'],
@@ -557,6 +560,9 @@ class Query
     public function sum(string $field = '')
     {
         try {
+            if(empty($this->options['query'])){
+                throw new \Exception('query条件不能为空');
+            }
 
             $body = [
                 "query" => $this->options['query'],
@@ -607,6 +613,10 @@ class Query
             return [];
         }
 
+        if(empty($this->options['query'])){
+            throw new \Exception('query条件不能为空');
+        }
+
         $group_key = 'group_num_key';
 
         $param = [
@@ -650,7 +660,7 @@ class Query
 
         $param['aggs'] = $aggs_query;
 
-        if($this->options['debug']){
+        if(!empty($this->options['debug'])){
             $this->logger->debug('最终请求参数==========' . json_encode($param, JSON_UNESCAPED_UNICODE));
         }
 
