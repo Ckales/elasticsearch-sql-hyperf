@@ -114,6 +114,11 @@ class Query
     {
         try {
 
+            if(!empty($this->options['group_key'])){
+                $result = $this->_group_get();
+                return $result[0] ?? [];
+            }
+
             $this->options['from'] = 0;
             $this->options['size'] = 1;
 
@@ -157,6 +162,11 @@ class Query
     {
         try {
 
+            if(!empty($this->options['group_key'])){
+                $result = $this->_group_get();
+                return array_slice($result, 0, $limit);
+            }
+
             $limit = intval($limit);
             if($limit > 0){
                 $this->options['size'] = $limit;
@@ -174,6 +184,35 @@ class Query
             $this->_print_exception_info($e);
         }
         return [];
+    }
+
+    /**
+     * group查询
+     * @return array
+     */
+    private function _group_get()
+    {
+        if(!empty($this->options['having'])){
+            $this->options['group_param']['aggs'][$this->options['group_key']]['aggs']['having'] = $this->options['having'];
+        }
+        // 进行数据查询
+        $res = $this->search($this->options['group_param']);
+        $res = $res['aggregations'][$this->options['group_key']]['buckets'] ?? [];
+
+        $data = [];
+        foreach ($res as $key => $value) {
+            $tmep_data = [
+                $this->options['group_by_field'] => $value['key'],
+            ];
+
+            foreach ($this->options['group_aggs'] as $item) {
+                $tmep_data[$item[2]] = $value[$item[2]]['value'];
+            }
+
+            $data[] = $tmep_data;
+        }
+
+        return $data;
     }
 
     /**
@@ -385,7 +424,6 @@ class Query
      * 查询参数格式化
      * @param $fields
      * @return $this
-     * @author ChingLi
      */
     public function whereNotNull($fields = [])
     {
@@ -404,7 +442,6 @@ class Query
      * 查询参数格式化
      * @param $fields
      * @return $this
-     * @author ChingLi
      */
     public function whereNull($fields = [])
     {
@@ -604,20 +641,22 @@ class Query
      * ]
      * @param $group_by_field string group by字段
      * 支持链式order方法、imit方法
-     * @return array
+     * @return $this
      * @throws \Exception
      */
     public function groupAggs($aggs = [], $group_by_field = '')
     {
         if(empty($aggs) || empty($group_by_field)){
-            return [];
+            throw new \Exception('group条件不能为空');
         }
 
         if(empty($this->options['query'])){
             throw new \Exception('query条件不能为空');
         }
 
-        $group_key = 'group_num_key';
+        $this->options['group_key'] = 'group_num_key';
+        $this->options['group_by_field'] = $group_by_field;
+        $this->options['group_aggs'] = $aggs;
 
         $param = [
             'size'  => 0,
@@ -625,7 +664,7 @@ class Query
         ];
 
         $aggs_query = [
-            $group_key=>[
+            $this->options['group_key']=>[
                 "terms"=>["field"=>$group_by_field,]
             ]
         ];
@@ -634,13 +673,13 @@ class Query
         if(!empty($this->options['order'])){
             foreach ($this->options['order'] as $key => $item) {
                 $temp_key = key($item);
-                $aggs_query[$group_key]['terms']['order'][$temp_key] = $item[$temp_key]['order'];
+                $aggs_query[$this->options['group_key']]['terms']['order'][$temp_key] = $item[$temp_key]['order'];
             }
         }
 
         // 筛选数量
         if(!empty($this->options['size'])){
-            $aggs_query[$group_key]['terms']['size'] = $this->options['size'];
+            $aggs_query[$this->options['group_key']]['terms']['size'] = $this->options['size'];
         }
 
         foreach ($aggs as $item) {
@@ -655,7 +694,7 @@ class Query
                 $item['1'] = 'value_count';
             }
 
-            $aggs_query[$group_key]['aggs'][$item[2]] = [$item[1]=>["field"=>$item[0]]];
+            $aggs_query[$this->options['group_key']]['aggs'][$item[2]] = [$item[1]=>["field"=>$item[0]]];
         }
 
         $param['aggs'] = $aggs_query;
@@ -664,24 +703,40 @@ class Query
             $this->logger->debug('最终请求参数==========' . json_encode($param, JSON_UNESCAPED_UNICODE));
         }
 
-        // 进行数据查询
-        $res = $this->search($param);
-        $res = $res['aggregations'][$group_key]['buckets'] ?? [];
+        $this->options['group_param'] = $param;
 
-        $data = [];
-        foreach ($res as $key => $value) {
-            $tmep_data = [
-                $group_by_field => $value['key'],
-            ];
+        return $this;
+    }
 
-            foreach ($aggs as $item) {
-                $tmep_data[$item[2]] = $value[$item[2]]['value'];
+    /**
+     * having方法
+     * @param $aggs array 格式：
+     * [
+     *      ['group字段别名', '条件', '值']
+     *      ['total_num', '>=', 10]
+     *      ['total_count', '<', 5]
+     * ]
+     * @return $this
+     * @throws \Exception
+     */
+    public function having($aggs = [])
+    {
+        $having_query = [];
+        $script = [];
+        foreach ($aggs as $item) {
+            if(count($item) != 3){
+                Throw new \Exception("having格式错误");
             }
 
-            $data[] = $tmep_data;
+            $having_query['bucket_selector']['buckets_path'][$item[0]] = $item[0];
+            $script[] = "params.{$item[0]} {$item[1]} {$item[2]}";
+        }
+        if(!empty($script)){
+            $having_query['bucket_selector']['script']['source'] = implode(' && ', $script);
+            $this->options['having'] = $having_query;
         }
 
-        return $data;
+        return $this;
     }
 
     /**
