@@ -65,7 +65,7 @@ class Query
                     'id' => $id,
                     'index' => $this->options['index'],
                 ];
-                return $result = $this->client->exists($params);
+                return $this->client->exists($params);
             }
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
@@ -107,31 +107,6 @@ class Query
     }
 
     /**
-     * 单条数据查询
-     * @return array
-     */
-    public function first()
-    {
-        try {
-
-            if(!empty($this->options['group_key'])){
-                $result = $this->_group_get();
-                return $result[0] ?? [];
-            }
-
-            $this->options['from'] = 0;
-            $this->options['size'] = 1;
-
-            $result = $this->_search();
-
-            return $result['hits']['hits'][0]['_source'] ?? [];
-        } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
-        }
-        return [];
-    }
-
-    /**
      * 自行组装查询条件进行列表查询
      * @param array $query
      * @param string $index
@@ -140,17 +115,63 @@ class Query
     public function search(array $query = [], string $index = '')
     {
         try {
+
+            if(!empty($this->options['debug'])){
+                $this->logger->debug('最终请求参数==========' . json_encode($query, JSON_UNESCAPED_UNICODE));
+            }
+
             $index && $this->options['index'] = $index;
             $params = [
                 'index' => $this->options['index'],
                 'body' => $query
             ];
-            $result = $this->client->search($params);
-            return $result;
+
+            return $this->client->search($params);
+
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
         }
         return [];
+    }
+
+    /**
+     * 单条数据查询
+     * @return array
+     */
+    public function first()
+    {
+        try {
+
+            if(!empty($this->options['group_key'])){
+                // group查询获取单条数据
+                $group_get = $this->_group_get();
+                $result = $group_get[0] ?? [];
+            }else{
+                // 普通查询获取单条数据
+                $result = $this->_first();
+            }
+
+            return $result;
+
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
+        }
+        return [];
+    }
+
+    /**
+     * 普通查询获取单条数据
+     * @return array
+     * @throws \Exception
+     */
+    private function _first()
+    {
+        $this->options['from'] = 0;
+        $this->options['size'] = 1;
+
+        $result = $this->_search();
+
+        return $result['hits']['hits'][0]['_source'] ?? [];
     }
 
     /**
@@ -163,27 +184,41 @@ class Query
         try {
 
             if(!empty($this->options['group_key'])){
-                $result = $this->_group_get();
-                return array_slice($result, 0, $limit);
-            }
-
-            $limit = intval($limit);
-            if($limit > 0){
-                $this->options['size'] = $limit;
-            }
-
-            $result = $this->_search();
-
-            if(!empty($result['hits']['hits'])){
-                $list = array_column($result['hits']['hits'], '_source');
+                $group_get = $this->_group_get();
+                $result = array_slice($group_get, 0, $limit);
             }else{
-                $list = [];
+                $result = $this->_get($limit);
             }
-            return $list;
+
+            return $result;
+
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
         }
         return [];
+    }
+
+    /**
+     * 多条数据查询
+     * @param $limit
+     * @return array
+     * @throws \Exception
+     */
+    private function _get($limit = 0)
+    {
+        $limit = intval($limit);
+        if($limit > 0){
+            $this->options['size'] = $limit;
+        }
+
+        $result = $this->_search();
+
+        if(!empty($result['hits']['hits'])){
+            $list = array_column($result['hits']['hits'], '_source');
+        }else{
+            $list = [];
+        }
+        return $list;
     }
 
     /**
@@ -192,13 +227,16 @@ class Query
      */
     private function _group_get()
     {
+        // having 处理
         if(!empty($this->options['having'])){
             $this->options['group_param']['aggs'][$this->options['group_key']]['aggs']['having'] = $this->options['having'];
         }
+
         // 进行数据查询
         $res = $this->search($this->options['group_param']);
         $res = $res['aggregations'][$this->options['group_key']]['buckets'] ?? [];
 
+        // 对查询到的数据进行格式化处理
         $data = [];
         foreach ($res as $key => $value) {
             $tmep_data = [
@@ -224,10 +262,12 @@ class Query
     public function paginate($page_size = 10, $page = 1)
     {
         try {
+            // 查询条件组装
             $page = max($page, 1);
             $this->options['from'] = ($page - 1) * $page_size;
             $this->options['size'] = $page_size;
 
+            // 数据查询
             $result = $this->_search();
 
             $total = $result['hits']['total']['value'] ?? 0;
@@ -238,11 +278,13 @@ class Query
                 $list = [];
             }
 
+            // 将数据组装成分页数据
             $data = $this->_imitate_page($total,$page_size, $page);
             $data['data'] = $list;
 
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
+            // 异常时模拟分页数据，正常返回分页格式
             $data = $this->_imitate_page(0,$page_size, $page);
         }
         return $data;
@@ -458,7 +500,7 @@ class Query
 
     /**
      * 查询字段
-     * @param $fileds
+     * @param $fileds array
      * @return $this
      */
     public function select($fileds = [])
@@ -472,7 +514,6 @@ class Query
 
     /**
      * 查询封装
-     * @param string $index
      * @return array|callable
      * @throws \Exception
      */
@@ -480,10 +521,13 @@ class Query
     {
 
         $body = [];
+
+        // query条件组装
         if(!empty($this->options['query'])){
             $body["query"] = $this->options['query'];
         }
 
+        // group条件组装
         if(!empty($this->options['group'])){
             $body['aggs'] = ['group_by' => $this->options['group']];
         }
@@ -496,11 +540,13 @@ class Query
             }
         }
 
+        // order条件组装
         $order = $this->options['order'] ?? [];
         if(!empty($order)){
             $body['sort'] = $order;
         }
 
+        // 深度分页after查询
         $after_value = $this->options['_after_value'] ?? [];
         if(!empty($after_value)){
             if(!is_array($after_value)){
@@ -512,14 +558,17 @@ class Query
             $body['search_after'] = $after_value;
         }
 
+        // 查询起始位置
         if(isset($this->options['from'])){
             $body['from'] = $this->options['from'];
         }
 
+        // 查询数量
         if(isset($this->options['size'])){
             $body['size'] = $this->options['size'];
         }
 
+        // 高亮字符
         if(!empty($this->options['highlight'])){
             $body['highlight'] = $this->options['highlight'];
         }
@@ -590,7 +639,6 @@ class Query
     /**
      * 聚合sum查询
      * @param string $field
-     * @param string $index
      * @return int
      * @author ChingLi
      */
@@ -698,10 +746,6 @@ class Query
         }
 
         $param['aggs'] = $aggs_query;
-
-        if(!empty($this->options['debug'])){
-            $this->logger->debug('最终请求参数==========' . json_encode($param, JSON_UNESCAPED_UNICODE));
-        }
 
         $this->options['group_param'] = $param;
 
@@ -952,8 +996,6 @@ class Query
     /**
      * 异常信息格式化
      * @param \Throwable $e
-     * @return string
-     * @author ChingLi
      */
     private function _print_exception_info(\Throwable $e, $log_level = 'error')
     {
