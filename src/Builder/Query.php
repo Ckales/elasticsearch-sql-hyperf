@@ -298,7 +298,6 @@ class Query
      * @param $limit int 分页偏移量
      * @param $current_page int 当前页码
      * @return array
-     * @author ChingLi
      */
     private function _imitate_page($total, $limit, $current_page)
     {
@@ -610,70 +609,6 @@ class Query
     }
 
     /**
-     * 聚合count查询
-     * @return int
-     */
-    public function count()
-    {
-        try {
-            if(empty($this->options['query'])){
-                throw new \Exception('query条件不能为空');
-            }
-
-            $body = [
-                "query" => $this->options['query'],
-            ];
-            $params = [
-                'index' => $this->options['index'],
-                'body' => $body
-            ];
-            $this->options['query'] = [];
-            $result = $this->client->count($params);
-            return intval($result['count'] ?? 0);
-        } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
-        }
-        return 0;
-    }
-
-    /**
-     * 聚合sum查询
-     * @param string $field
-     * @return int
-     * @author ChingLi
-     */
-    public function sum(string $field = '')
-    {
-        try {
-            if(empty($this->options['query'])){
-                throw new \Exception('query条件不能为空');
-            }
-
-            $body = [
-                "query" => $this->options['query'],
-                'size'  => 0,
-                'aggs' => [
-                    'sum' => [
-                        'sum' => [
-                            'field' => $field
-                        ]
-                    ]
-                ]
-            ];
-            $params = [
-                'index' => $this->options['index'],
-                'body' => $body
-            ];
-            $this->options['query'] = [];
-            $result = $this->client->search($params);
-            return intval($result['aggregations']['sum']['value'] ?? 0);
-        } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
-        }
-        return 0;
-    }
-
-    /**
      * 对count(*) group by 进行封装
      * 对应mysql select count()，sum() from table group by {$group_by_field}
      * 请注意：
@@ -804,7 +739,6 @@ class Query
      * 起始位置
      * @param $num
      * @return $this
-     * @author ChingLi
      */
     public function offset($num = 0)
     {
@@ -817,7 +751,6 @@ class Query
      * 查询条数
      * @param $num
      * @return $this
-     * @author ChingLi
      */
     public function limit($num = 0)
     {
@@ -841,12 +774,12 @@ class Query
     /**
      * 字段高亮
      * 格式['title', 'name']，数组元素为需要高亮的字段
-     * @param $fields
+     * @param $fields array 需要高亮的字段
      * @return $this
-     * @author ChingLi
      */
     public function highlight($fields = [])
     {
+        // TODO::自定义高亮格式
         if(!empty($fields)){
             $highlight_fields = [];
             foreach ($fields as $item) {
@@ -866,6 +799,69 @@ class Query
         }
 
         return $this;
+    }
+
+    /**
+     * 聚合count查询
+     * @return int
+     */
+    public function count()
+    {
+        try {
+            if(empty($this->options['query'])){
+                throw new \Exception('query条件不能为空');
+            }
+
+            $body = [
+                "query" => $this->options['query'],
+            ];
+            $params = [
+                'index' => $this->options['index'],
+                'body' => $body
+            ];
+            $this->options['query'] = [];
+            $result = $this->client->count($params);
+            return intval($result['count'] ?? 0);
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
+        }
+        return 0;
+    }
+
+    /**
+     * 聚合sum查询
+     * @param string $field
+     * @return int
+     */
+    public function sum(string $field = '')
+    {
+        try {
+            if(empty($this->options['query'])){
+                throw new \Exception('query条件不能为空');
+            }
+
+            $body = [
+                "query" => $this->options['query'],
+                'size'  => 0,
+                'aggs' => [
+                    'sum' => [
+                        'sum' => [
+                            'field' => $field
+                        ]
+                    ]
+                ]
+            ];
+            $params = [
+                'index' => $this->options['index'],
+                'body' => $body
+            ];
+            $this->options['query'] = [];
+            $result = $this->client->search($params);
+            return intval($result['aggregations']['sum']['value'] ?? 0);
+        } catch (\Throwable $e) {
+            $this->_print_exception_info($e);
+        }
+        return 0;
     }
 
     /**
@@ -999,6 +995,7 @@ class Query
      */
     private function _print_exception_info(\Throwable $e, $log_level = 'error')
     {
+        // TODO::拆分独立模块
         $infoStr = ' err_code:' . $e->getCode() . PHP_EOL
             . ' err_msg:' . $e->getMessage() . PHP_EOL
             . ' err_file:' . $e->getFile() . PHP_EOL
