@@ -23,7 +23,7 @@ class Query
      */
     private $options;
 
-    protected LoggerInterface $logger;
+    protected $logger;
 
     public function __construct(Client $client = null, $config = [])
     {
@@ -33,10 +33,9 @@ class Query
             $this->client = $client;
         }
 
-        $this->logger = ApplicationContext::getContainer()->get(LoggerFactory::class)->get('elasticsearch-sql-hyperf', $config['log_config'] ?? 'default');
+        $this->logger = new Log($config);
 
         $this->options = [];
-        $this->options['debug'] = $config['debug'] ?? false;
     }
 
     /**
@@ -68,7 +67,7 @@ class Query
                 return $this->client->exists($params);
             }
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return false;
     }
@@ -101,7 +100,7 @@ class Query
                 return $result;
             }
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -116,9 +115,7 @@ class Query
     {
         try {
 
-            if(!empty($this->options['debug'])){
-                $this->logger->debug('最终请求参数==========' . json_encode($query, JSON_UNESCAPED_UNICODE));
-            }
+            $this->logger->write('最终请求参数==========' . json_encode($query, JSON_UNESCAPED_UNICODE), 'debug');
 
             $index && $this->options['index'] = $index;
             $params = [
@@ -129,7 +126,7 @@ class Query
             return $this->client->search($params);
 
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -154,7 +151,7 @@ class Query
             return $result;
 
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -193,7 +190,7 @@ class Query
             return $result;
 
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -283,7 +280,7 @@ class Query
             $data['data'] = $list;
 
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
             // 异常时模拟分页数据，正常返回分页格式
             $data = $this->_imitate_page(0,$page_size, $page);
         }
@@ -581,14 +578,13 @@ class Query
             $params['_source'] = $this->options['_source'];
         }
 
-        if(!empty($this->options['debug'])){
-            $this->logger->debug('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE));
-        }
+        // 记录日志
+        $this->logger->write('最终请求参数==========' . json_encode($params, JSON_UNESCAPED_UNICODE), 'debug');
+
         $result = $this->client->search($params);
 
-        if(!empty($this->options['debug'])){
-//            $this->logger->debug('最终请求数据==========' . json_encode($result, JSON_UNESCAPED_UNICODE));
-        }
+//        $this->logger->debug('最终请求数据==========' . json_encode($result, JSON_UNESCAPED_UNICODE), 'debug');
+
         if(!empty($result['hits']['hits']) && !empty($body['highlight']['fields'])){
             $hightlight_field = array_keys($body['highlight']['fields']);
 
@@ -830,7 +826,7 @@ class Query
             $result = $this->client->count($params);
             return intval($result['count'] ?? 0);
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return 0;
     }
@@ -866,7 +862,7 @@ class Query
             $result = $this->client->search($params);
             return intval($result['aggregations']['sum']['value'] ?? 0);
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return 0;
     }
@@ -887,7 +883,7 @@ class Query
                 return $this->client->delete($params);
             }
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -912,7 +908,7 @@ class Query
                 }
             }
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -937,7 +933,7 @@ class Query
                 }
             }
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -956,7 +952,7 @@ class Query
             ];
             return $this->client->indices()->create($params);
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -973,7 +969,7 @@ class Query
             ];
             return $this->client->indices()->delete($params);
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
     }
@@ -990,25 +986,9 @@ class Query
             ];
             return $this->client->indices()->get($params);
         } catch (\Throwable $e) {
-            $this->_print_exception_info($e);
+            $this->logger->printExceptionInfo($e);
         }
         return [];
-    }
-
-    /**
-     * 异常信息格式化
-     * @param \Throwable $e
-     */
-    private function _print_exception_info(\Throwable $e, $log_level = 'error')
-    {
-        // TODO::拆分独立模块
-        $infoStr = ' err_code:' . $e->getCode() . PHP_EOL
-            . ' err_msg:' . $e->getMessage() . PHP_EOL
-            . ' err_file:' . $e->getFile() . PHP_EOL
-            . ' err_line:' . $e->getLine() . PHP_EOL
-            . ' err_trace:' . PHP_EOL
-            . $e->getTraceAsString();
-        $this->logger->{$log_level}($infoStr);
     }
 
 }
