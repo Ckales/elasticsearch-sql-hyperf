@@ -884,7 +884,7 @@ class Query
                     'index' => $this->options['index'],
                     'id' => $id
                 ];
-                return $result = $this->client->delete($params);
+                return $this->client->delete($params);
             }
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
@@ -908,7 +908,7 @@ class Query
                         'id' => $id,
                         'body' => $data
                     ];
-                    return $result = $this->client->create($params);
+                    return $this->client->create($params);
                 }
             }
         } catch (\Throwable $e) {
@@ -933,7 +933,7 @@ class Query
                         'id' => $id,
                         'body' => $data
                     ];
-                    return $result = $this->client->update($params);
+                    return $this->client->update($params);
                 }
             }
         } catch (\Throwable $e) {
@@ -945,7 +945,6 @@ class Query
     /**
      * 创建索引
      * @param array $body
-     * @param string $index
      * @return array
      */
     public function createIndex(array $body = [])
@@ -955,7 +954,7 @@ class Query
                 'index' => $this->options['index'],
                 'body' => $body
             ];
-            return $result = $this->client->indices()->create($params);
+            return $this->client->indices()->create($params);
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
         }
@@ -972,7 +971,7 @@ class Query
             $params = [
                 'index' => $this->options['index']
             ];
-            return $result = $this->client->indices()->delete($params);
+            return $this->client->indices()->delete($params);
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
         }
