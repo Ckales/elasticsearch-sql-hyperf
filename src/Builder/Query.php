@@ -775,11 +775,18 @@ class Query
      * 字段高亮
      * 格式['title', 'name']，数组元素为需要高亮的字段
      * @param $fields array 需要高亮的字段
+     * @param $pre_tags string 高亮前缀
+     * @param $post_tags string 高亮后缀
      * @return $this
      */
-    public function highlight($fields = [])
+    public function highlight($fields = [], $pre_tags = '', $post_tags = '')
     {
-        // TODO::自定义高亮格式
+        // 自定义高亮格式
+        if(empty($pre_tags) || empty($post_tags)){
+            $pre_tags = '<span style="color: red;">';
+            $post_tags = '</span>';
+        }
+
         if(!empty($fields)){
             $highlight_fields = [];
             foreach ($fields as $item) {
@@ -790,8 +797,8 @@ class Query
                 "order"  => "score",
                 "boundary_scanner" => "sentence",
                 'number_of_fragments'   => 0,
-                "pre_tags" => ['<span style="color: red;">'],
-                "post_tags" => ['</span>'],
+                "pre_tags" => [$pre_tags],
+                "post_tags" => [$post_tags],
                 "fields" => $highlight_fields,
             ];
 
@@ -982,7 +989,7 @@ class Query
             $params = [
                 'index' => $this->options['index']
             ];
-            return $result = $this->client->indices()->get($params);
+            return $this->client->indices()->get($params);
         } catch (\Throwable $e) {
             $this->_print_exception_info($e);
         }
