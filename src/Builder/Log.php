@@ -4,6 +4,7 @@ namespace Es\Builder;
 
 use Psr\Log\LoggerInterface;
 use Hyperf\Logger\LoggerFactory;
+use Hyperf\Context\ApplicationContext;
 
 class Log
 {
